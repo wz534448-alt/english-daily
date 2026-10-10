@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="每日英语">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+<title>每日英语 English Daily</title>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--bg:#f5f6fa;--card:#fff;--text:#1c1e24;--sub:#6b7080;--line:#e4e6ee;--accent:#2f6bff;--ok:#1aa260;--bad:#e5484d;--chip:#eef2ff}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1c1f26;--text:#eceef3;--sub:#9aa0ae;--line:#2b2f39;--accent:#5b8cff;--chip:#232a3d}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:17px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;-webkit-text-size-adjust:100%}
+body{min-height:100vh;min-height:100dvh;touch-action:manipulation;overscroll-behavior-y:none}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 18px) 8px calc(env(safe-area-inset-left) + 18px)}
+header h1{margin:0;font-size:26px;font-weight:800}
+header .meta{color:var(--sub);font-size:14px;display:flex;gap:12px;flex-wrap:wrap}
+main{padding:4px calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 96px) calc(env(safe-area-inset-left) + 16px);max-width:560px;margin:0 auto}
+.card{background:var(--card);border-radius:20px;padding:20px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.label{font-size:13px;color:var(--sub);letter-spacing:.5px;margin-bottom:6px}
+.big{font-size:34px;font-weight:800;line-height:1.15;word-break:break-word}
+.sent{font-size:22px;font-weight:700;line-height:1.35}
+.ph{color:var(--sub);font-size:16px}
+.zh{font-size:18px;margin-top:8px}
+.ex{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.ex .en{font-size:18px}.ex .cn{color:var(--sub);font-size:15px}
+.row{display:flex;gap:10px;align-items:center}
+.grow{flex:1}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.btn{min-height:52px;border-radius:14px;padding:0 18px;font-size:17px;font-weight:600;background:var(--chip);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:active{transform:scale(.97);opacity:.85}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.ok{background:var(--ok);color:#fff}.btn.bad{background:var(--bad);color:#fff}
+.btn.full{width:100%}
+.spk{width:52px;height:52px;min-width:52px;border-radius:50%;background:var(--chip);font-size:22px;display:inline-flex;align-items:center;justify-content:center}
+.spk:active{transform:scale(.92)}
+.hidden{display:none!important}
+.reveal{margin-top:14px;min-height:56px;border:2px dashed var(--line);border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:16px;width:100%;background:transparent}
+.progress{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:4px 0 2px}
+.progress>i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .3s}
+.btns2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.opts{display:grid;gap:10px;margin-top:14px}
+.opt{min-height:56px;border-radius:14px;background:var(--chip);text-align:left;padding:10px 16px;font-size:17px}
+.opt.right{background:var(--ok);color:#fff}.opt.wrong{background:var(--bad);color:#fff}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--card);border-top:1px solid var(--line);display:flex;padding:6px env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 6px) env(safe-area-inset-left)}
+nav button{flex:1;min-height:56px;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;color:var(--sub);gap:2px}
+nav button b{font-size:22px;font-weight:400;line-height:1}
+nav button.on{color:var(--accent)}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+.stat div{background:var(--card);border-radius:16px;padding:14px 4px}
+.stat strong{display:block;font-size:28px}
+.stat span{font-size:13px;color:var(--sub)}
+.list .it{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:8px;min-height:52px}
+.list .it:last-child{border:0}
+.tag{font-size:12px;padding:2px 8px;border-radius:10px;background:var(--chip);color:var(--sub);white-space:nowrap}
+.done{text-align:center;padding:28px 20px}
+.done .e{font-size:56px}
+.toggle{display:flex;justify-content:space-between;align-items:center;min-height:52px}
+.sw{width:52px;height:32px;border-radius:16px;background:var(--line);position:relative;transition:.2s}
+.sw.on{background:var(--ok)}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:.2s}
+.sw.on::after{left:23px}
+small.note{color:var(--sub);font-size:13px;display:block;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">今日英语</h1>
+  <div class="meta"><span id="dateTxt"></span><span id="streakTxt"></span></div>
+</header>
+<main>
+  <!-- TODAY -->
+  <section id="v-today">
+    <div class="card">
+      <div class="label">📌 今日一句 · <span id="sScene"></span></div>
+      <div class="row"><div class="grow sent" id="sEn"></div><button class="spk" data-say="sEn" aria-label="朗读">🔊</button></div>
+      <div class="zh" id="sZh"></div>
+    </div>
+    <div class="label" style="margin:16px 4px 0">今日单词 <span id="wCount"></span></div>
+    <div class="progress"><i id="wBar" style="width:0"></i></div>
+    <div id="learnBox"></div>
+  </section>
+
+  <!-- REVIEW -->
+  <section id="v-review" class="hidden"><div id="reviewBox"></div></section>
+
+  <!-- QUIZ -->
+  <section id="v-quiz" class="hidden"><div id="quizBox"></div></section>
+
+  <!-- STATS -->
+  <section id="v-stats" class="hidden">
+    <div class="stat" style="margin-top:8px">
+      <div><strong id="stStreak">0</strong><span>连续天数</span></div>
+      <div><strong id="stLearned">0</strong><span>已学单词</span></div>
+      <div><strong id="stMaster">0</strong><span>已掌握</span></div>
+    </div>
+    <div class="card">
+      <div class="toggle"><span>🐢 慢速朗读</span><button class="sw" id="slowSw" aria-label="慢速朗读"></button></div>
+      <div class="toggle"><span>🔁 学单词时自动朗读</span><button class="sw" id="autoSw" aria-label="自动朗读"></button></div>
+      <small class="note">没有声音？请关闭 iPhone 侧边静音开关并调高音量。所有学习记录只保存在本机。</small>
+    </div>
+    <div class="card list" id="wordList"></div>
+    <button class="btn full" id="resetBtn" style="color:var(--bad)">清空学习记录</button>
+  </section>
+</main>
+<nav>
+  <button data-v="today" class="on"><b>📖</b>今日</button>
+  <button data-v="review"><b>🔄</b>复习<span id="dueBadge"></span></button>
+  <button data-v="quiz"><b>✏️</b>测验</button>
+  <button data-v="stats"><b>📊</b>进度</button>
+</nav>
+<script src="words.js"></script>
+<script>
+(()=>{
+const PER_DAY=5, KEY='englishDaily.v1';
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const todayStr=(d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const dayNum=s=>Math.round(new Date(s+'T00:00:00')/864e5);
+let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+S=Object.assign({start:todayStr(),cards:{},days:{},slow:false,auto:true},S||{});
+const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
+const T=todayStr(), DI=dayNum(T)-dayNum(S.start);
+save();
+
+// ---- speech ----
+let voice=null;
+function pickVoice(){const vs=speechSynthesis.getVoices().filter(v=>/^en[-_]/i.test(v.lang));
+  voice=vs.find(v=>/en[-_]US/i.test(v.lang)&&/Samantha|Ava|Allison|Alex/i.test(v.name))||vs.find(v=>/en[-_]US/i.test(v.lang))||vs[0]||null}
+if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+function say(t){if(!('speechSynthesis' in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-US';if(voice)u.voice=voice;u.rate=S.slow?0.65:0.92;speechSynthesis.speak(u)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-say]');if(!b)return;const k=b.dataset.say;say($(k)?$(k).textContent:k)});
+
+// ---- daily content ----
+const todayIdx=[...Array(PER_DAY)].map((_,i)=>((DI*PER_DAY+i)%WORDS.length+WORDS.length)%WORDS.length);
+const sent=SENTENCES[((DI%SENTENCES.length)+SENTENCES.length)%SENTENCES.length];
+$('sEn').textContent=sent[0];$('sZh').textContent=sent[1];$('sScene').textContent=sent[2];
+const wk='日一二三四五六'[new Date().getDay()];
+$('dateTxt').textContent=`${new Date().getMonth()+1}月${new Date().getDate()}日 星期${wk} · 第${DI+1}天`;
+
+// ---- SRS (Leitner boxes) ----
+const GAP=[0,1,2,4,7,15,30]; // days
+function rate(i,known){const c=S.cards[i]||{box:0,seen:T,n:0};c.n++;c.box=known?Math.min(c.box+1,GAP.length-1):1;c.due=todayStr(new Date(Date.now()+GAP[c.box]*864e5));S.cards[i]=c;save()}
+const dueList=()=>Object.keys(S.cards).filter(i=>S.cards[i].due<=T&&!todayIdx.includes(+i)).map(Number);
+
+function streak(){let n=0,d=new Date();if(!S.days[todayStr(d)])d.setDate(d.getDate()-1);while(S.days[todayStr(d)]){n++;d.setDate(d.getDate()-1)}return n}
+function head(){const s=streak();$('streakTxt').textContent=s?`🔥 连续 ${s} 天`:'';const n=dueList().length;$('dueBadge').textContent=n?` (${n})`:''}
+
+function wordCard(i,onRate,auto){
+  const w=WORDS[i],el=document.createElement('div');el.className='card';
+  el.innerHTML=`<div class="row"><div class="grow"><div class="big"></div><div class="ph"></div></div><button class="spk" aria-label="朗读单词">🔊</button></div>
+  <button class="reveal">轻点查看释义</button>
+  <div class="ans hidden"><div class="zh"></div><div class="ex"><div class="row"><div class="grow"><div class="en"></div><div class="cn"></div></div><button class="spk spk2" aria-label="朗读例句">🔊</button></div></div>
+  <div class="btns2"><button class="btn bad">✗ 不认识</button><button class="btn ok">✓ 认识</button></div></div>`;
+  el.querySelector('.big').textContent=w[0];el.querySelector('.ph').textContent=w[1];
+  el.querySelector('.zh').textContent=w[2];el.querySelector('.en').textContent=w[3];el.querySelector('.cn').textContent=w[4];
+  el.querySelector('.spk').onclick=()=>say(w[0]);el.querySelector('.spk2').onclick=()=>say(w[3]);
+  el.querySelector('.reveal').onclick=e=>{e.target.classList.add('hidden');el.querySelector('.ans').classList.remove('hidden');if(S.auto)say(w[3])};
+  el.querySelector('.bad').onclick=()=>onRate(false);el.querySelector('.ok').onclick=()=>onRate(true);
+  if(auto&&S.auto)setTimeout(()=>say(w[0]),50);
+  return el;
+}
+
+// ---- Today ----
+function renderToday(auto){
+  const d=S.days[T]||(S.days[T]=null);
+  const doneSet=(S.today&&S.today.d===T)?S.today.done:[];
+  const left=todayIdx.filter(i=>!doneSet.includes(i));
+  $('wCount').textContent=`${doneSet.length}/${PER_DAY}`;$('wBar').style.width=doneSet.length/PER_DAY*100+'%';
+  const box=$('learnBox');box.innerHTML='';
+  if(!left.length){
+    S.days[T]=1;save();head();
+    box.innerHTML=`<div class="card done"><div class="e">🎉</div><h2 style="margin:6px 0">今天的单词学完了！</h2><p style="color:var(--sub);margin:0 0 16px">做个小测验巩固一下，或者去复习旧词。</p><button class="btn primary full" id="goQuiz">开始测验</button><div style="height:10px"></div><button class="btn full" id="again">再看一遍今天的词</button></div>`;
+    $('goQuiz').onclick=()=>show('quiz');
+    $('again').onclick=()=>{S.today={d:T,done:[]};save();renderToday(true)};
+    return;
+  }
+  const i=left[0];
+  box.appendChild(wordCard(i,known=>{rate(i,known);S.today={d:T,done:[...doneSet,i]};save();renderToday(true);scrollTo({top:0,behavior:'smooth'})},auto));
+}
+
+// ---- Review ----
+function renderReview(){
+  const box=$('reviewBox'),due=dueList();box.innerHTML='';
+  if(!due.length){box.innerHTML=`<div class="card done"><div class="e">✅</div><h2 style="margin:6px 0">没有需要复习的单词</h2><p style="color:var(--sub);margin:0">系统会按遗忘曲线（1/2/4/7/15/30天）安排复习。</p></div>`;return}
+  const lab=document.createElement('div');lab.className='label';lab.style.margin='8px 4px 0';lab.textContent=`待复习 ${due.length} 个`;box.appendChild(lab);
+  const i=due[0];box.appendChild(wordCard(i,k=>{rate(i,k);head();renderReview()},true));
+}
+
+// ---- Quiz ----
+function renderQuiz(){
+  const pool=[...new Set([...todayIdx,...Object.keys(S.cards).map(Number)])];
+  const box=$('quizBox');box.innerHTML='';
+  const q=pool[Math.floor(Math.random()*pool.length)],w=WORDS[q];
+  const mode=Math.random()<.5;// true: en->zh
+  const opts=new Set([q]);while(opts.size<4)opts.add(Math.floor(Math.random()*WORDS.length));
+  const arr=[...opts].sort(()=>Math.random()-.5);
+  const el=document.createElement('div');el.className='card';
+  el.innerHTML=`<div class="label">${mode?'选出正确的中文意思':'选出对应的英文'}</div><div class="row"><div class="grow ${mode?'big':'sent'}"></div>${mode?'<button class="spk">🔊</button>':''}</div><div class="opts"></div><div class="fb hidden" style="margin-top:14px"></div>`;
+  el.querySelector('.grow').textContent=mode?w[0]:w[2];
+  if(mode)el.querySelector('.spk').onclick=()=>say(w[0]);
+  const oBox=el.querySelector('.opts');
+  arr.forEach(o=>{const b=document.createElement('button');b.className='opt';b.textContent=mode?WORDS[o][2]:WORDS[o][0];
+    b.onclick=()=>{if(oBox.dataset.done)return;oBox.dataset.done=1;
+      [...oBox.children].forEach((c,k)=>{if(arr[k]===q)c.classList.add('right')});
+      if(o!==q)b.classList.add('wrong');say(w[0]);
+      const fb=el.querySelector('.fb');fb.classList.remove('hidden');
+      fb.innerHTML=`<div class="ex" style="margin:0 0 14px"><div class="en"></div><div class="cn"></div></div><button class="btn primary full">下一题 →</button>`;
+      fb.querySelector('.en').textContent=w[3];fb.querySelector('.cn').textContent=w[4];
+      fb.querySelector('button').onclick=renderQuiz;
+      if(S.cards[q]&&o!==q){S.cards[q].box=1;S.cards[q].due=T;save();head()}
+    };oBox.appendChild(b)});
+  box.appendChild(el);
+}
+
+// ---- Stats ----
+function renderStats(){
+  const ids=Object.keys(S.cards).map(Number);
+  $('stStreak').textContent=streak();$('stLearned').textContent=ids.length;
+  $('stMaster').textContent=ids.filter(i=>S.cards[i].box>=4).length;
+  $('slowSw').classList.toggle('on',S.slow);$('autoSw').classList.toggle('on',S.auto);
+  const L=$('wordList');L.innerHTML='<div class="label">已学单词（轻点朗读）</div>';
+  if(!ids.length)L.innerHTML+='<p style="color:var(--sub);margin:0">还没有学习记录。</p>';
+  ids.sort((a,b)=>(S.cards[b].seen>S.cards[a].seen)-(S.cards[b].seen<S.cards[a].seen)).forEach(i=>{
+    const r=document.createElement('div');r.className='it';
+    r.innerHTML=`<div><b class="w"></b><div class="m" style="color:var(--sub);font-size:14px"></div></div><span class="tag"></span>`;
+    r.querySelector('.w').textContent=WORDS[i][0];r.querySelector('.m').textContent=WORDS[i][2];
+    r.querySelector('.tag').textContent=S.cards[i].box>=4?'已掌握':`复习 ${S.cards[i].due.slice(5)}`;
+    r.onclick=()=>say(WORDS[i][0]);L.appendChild(r)});
+}
+$('slowSw').onclick=()=>{S.slow=!S.slow;save();renderStats();say('This is the reading speed.')};
+$('autoSw').onclick=()=>{S.auto=!S.auto;save();renderStats()};
+$('resetBtn').onclick=()=>{if(confirm('确定清空所有学习记录？')){localStorage.removeItem(KEY);location.reload()}};
+
+// ---- nav ----
+const titles={today:'今日英语',review:'复习',quiz:'小测验',stats:'学习进度'};
+function show(v){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  ['today','review','quiz','stats'].forEach(k=>$('v-'+k).classList.toggle('hidden',k!==v));
+  $('title').textContent=titles[v];if('speechSynthesis' in window)speechSynthesis.cancel();
+  ({today:()=>renderToday(false),review:renderReview,quiz:renderQuiz,stats:renderStats})[v]();scrollTo(0,0)}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+// reload on a new day when app resumes from background
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&todayStr()!==T)location.reload()});
+head();renderToday(false);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
