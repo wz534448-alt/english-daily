@@ -1,12 +1,10 @@
-const CACHE='english-daily-v3';
+const CACHE='english-daily-v4';
 importScripts('words.js','dialogues.js');
-const SHELL=['./','index.html','words.js','hints.js','dialogues.js','manifest.webmanifest','icons/apple-touch-icon.png','icons/icon-192.png','icons/icon-512.png'];
+const SHELL=['./','index.html','words.js','hints.js','dialogues.js','timings.js','manifest.webmanifest','icons/apple-touch-icon.png','icons/icon-192.png','icons/icon-512.png'];
 const p3=i=>String(i).padStart(3,'0'),AUDIO=[];
-for(const sp of['','_s']){
-  WORDS.forEach((_,i)=>AUDIO.push(`audio/w${p3(i)}${sp}.mp3`,`audio/e${p3(i)}${sp}.mp3`));
-  SENTENCES.forEach((_,i)=>AUDIO.push(`audio/s${p3(i)}${sp}.mp3`));
-  DIALOGUES.forEach((d,i)=>d.l.forEach((_,j)=>AUDIO.push(`audio/d${p3(i)}_${j}${sp}.mp3`)));
-}
+WORDS.forEach((_,i)=>AUDIO.push(`audio/w${p3(i)}.mp3`,`audio/e${p3(i)}.mp3`));
+SENTENCES.forEach((_,i)=>AUDIO.push(`audio/s${p3(i)}.mp3`));
+DIALOGUES.forEach((d,i)=>d.l.forEach((_,j)=>AUDIO.push(`audio/d${p3(i)}_${j}.mp3`)));
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting()));
 });
@@ -18,13 +16,19 @@ self.addEventListener('activate',e=>{
   }));
 });
 // download all audio in the background (does not block install/activation; failures are retried next open)
+async function post(m){(await self.clients.matchAll({type:'window'})).forEach(c=>c.postMessage(m))}
+let caching=null;
 async function cacheAudio(){
   const c=await caches.open(CACHE);
   const missing=[];for(const u of AUDIO)if(!(await c.match(u)))missing.push(u);
-  for(let i=0;i<missing.length;i+=6)
-    await Promise.allSettled(missing.slice(i,i+6).map(u=>fetch(u).then(r=>r.ok&&c.put(u,r))));
+  let done=AUDIO.length-missing.length;post({t:'audio',done,total:AUDIO.length});
+  for(let i=0;i<missing.length;i+=4){
+    await Promise.allSettled(missing.slice(i,i+4).map(u=>fetch(u).then(r=>{if(r.ok){done++;return c.put(u,r)}})));
+    if(i%20===0||i+4>=missing.length)post({t:'audio',done,total:AUDIO.length});
+  }
+  post({t:'audio',done,total:AUDIO.length});
 }
-self.addEventListener('message',e=>{if(e.data==='cache-audio')e.waitUntil(cacheAudio())});
+self.addEventListener('message',e=>{if(e.data==='cache-audio'){caching=caching||cacheAudio().finally(()=>caching=null);e.waitUntil(caching)}});
 
 // Safari needs 206 partial responses for <audio> Range requests
 async function rangeResponse(req,res){
