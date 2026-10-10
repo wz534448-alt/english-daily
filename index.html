@@ -29,6 +29,20 @@ main{padding:4px calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inse
 .big{font-size:34px;font-weight:800;line-height:1.15;word-break:break-word}
 .sent{font-size:22px;font-weight:700;line-height:1.35}
 .ph{color:var(--sub);font-size:16px}
+.hint{color:var(--sub);font-size:14px;margin-top:2px;opacity:.9}
+.hint::before{content:"谐音 ";font-size:11px;border:1px solid var(--line);border-radius:6px;padding:0 4px;margin-right:4px;vertical-align:1px}
+.scenes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.scene{background:var(--card);border-radius:16px;min-height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.scene b{font-size:28px;font-weight:400;line-height:1.1}.scene small{color:var(--sub);font-size:12px}
+.dl{display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:8px 0;border-bottom:1px solid var(--line);width:100%;background:none;text-align:left;font-size:17px}
+.dl:last-child{border:0}
+.line{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.line:last-child{border:0}
+.line.cur{background:var(--chip);border-radius:12px;margin:0 -10px;padding:12px 10px}
+.who{min-width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;background:#2f6bff;margin-top:2px}
+.who.B{background:#e5548f}
+.line .en{font-size:18px;font-weight:600}.line .cn{color:var(--sub);font-size:15px}
+.back{min-height:48px;background:none;color:var(--accent);font-size:17px;padding:0 4px;margin-left:-4px}
 .zh{font-size:18px;margin-top:8px}
 .ex{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .ex .en{font-size:18px}.ex .cn{color:var(--sub);font-size:15px}
@@ -82,12 +96,15 @@ small.note{color:var(--sub);font-size:13px;display:block;margin-top:6px}
     <div class="card">
       <div class="label">📌 今日一句 · <span id="sScene"></span></div>
       <div class="row"><div class="grow sent" id="sEn"></div><button class="spk" data-say="sEn" aria-label="朗读">🔊</button></div>
-      <div class="zh" id="sZh"></div>
+      <div class="hint" id="sHint"></div><div class="zh" id="sZh"></div>
     </div>
     <div class="label" style="margin:16px 4px 0">今日单词 <span id="wCount"></span></div>
     <div class="progress"><i id="wBar" style="width:0"></i></div>
     <div id="learnBox"></div>
   </section>
+
+  <!-- DIALOGUE -->
+  <section id="v-dlg" class="hidden"><div id="dlgBox"></div></section>
 
   <!-- REVIEW -->
   <section id="v-review" class="hidden"><div id="reviewBox"></div></section>
@@ -105,7 +122,7 @@ small.note{color:var(--sub);font-size:13px;display:block;margin-top:6px}
     <div class="card">
       <div class="toggle"><span>🐢 慢速朗读</span><button class="sw" id="slowSw" aria-label="慢速朗读"></button></div>
       <div class="toggle"><span>🔁 学单词时自动朗读</span><button class="sw" id="autoSw" aria-label="自动朗读"></button></div>
-      <small class="note">没有声音？请关闭 iPhone 侧边静音开关并调高音量。所有学习记录只保存在本机。</small>
+      <small class="note">声音为预录真人风格语音，静音模式下也能播放（请把音量调大）。所有学习记录只保存在本机。</small>
     </div>
     <div class="card list" id="wordList"></div>
     <button class="btn full" id="resetBtn" style="color:var(--bad)">清空学习记录</button>
@@ -113,11 +130,14 @@ small.note{color:var(--sub);font-size:13px;display:block;margin-top:6px}
 </main>
 <nav>
   <button data-v="today" class="on"><b>📖</b>今日</button>
+  <button data-v="dlg"><b>💬</b>对话</button>
   <button data-v="review"><b>🔄</b>复习<span id="dueBadge"></span></button>
   <button data-v="quiz"><b>✏️</b>测验</button>
   <button data-v="stats"><b>📊</b>进度</button>
 </nav>
 <script src="words.js"></script>
+<script src="hints.js"></script>
+<script src="dialogues.js"></script>
 <script>
 (()=>{
 const PER_DAY=5, KEY='englishDaily.v1';
@@ -131,18 +151,37 @@ const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const T=todayStr(), DI=dayNum(T)-dayNum(S.start);
 save();
 
-// ---- speech ----
+// ---- audio: pre-generated MP3 via one HTML5 <audio> element (plays with silent switch on); speechSynthesis only as fallback ----
+const player=new Audio();player.preload='auto';player.setAttribute('playsinline','');
+try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
+let lastText='',seq=null;
+player.onerror=()=>{if(lastText)tts(lastText,seqNext)};
+player.onended=()=>seqNext();
+function seqNext(){if(!seq)return;seq.i++;if(seq.i>=seq.items.length){const d=seq.done;seq=null;d&&d();return}
+  const it=seq.items[seq.i];seq.onStep&&seq.onStep(seq.i);_play(it[0],it[1])}
+function playSeq(items,onStep,done){seq={items,i:0,onStep,done};onStep&&onStep(0);_play(items[0][0],items[0][1])}
+function stopAudio(){const d=seq&&seq.done;seq=null;player.pause();if('speechSynthesis' in window)speechSynthesis.cancel();d&&d()}
+function play(key,text){if(seq){const d=seq.done;seq=null;d&&d()}_play(key,text)}
+function _play(key,text){ // must be called synchronously inside a tap handler (or from the 'ended' event of the same element)
+  lastText=text;if('speechSynthesis' in window)speechSynthesis.cancel();
+  try{player.pause();player.src='audio/'+key+(S.slow?'_s':'')+'.mp3';player.currentTime=0;
+    const p=player.play();if(p&&p.catch)p.catch(err=>{if(err&&err.name!=='AbortError')tts(text)});
+  }catch(e){tts(text)}
+}
+const wKey=i=>'w'+String(i).padStart(3,'0'),eKey=i=>'e'+String(i).padStart(3,'0');
+// ---- speech (fallback) ----
 let voice=null;
 function pickVoice(){const vs=speechSynthesis.getVoices().filter(v=>/^en[-_]/i.test(v.lang));
   voice=vs.find(v=>/en[-_]US/i.test(v.lang)&&/Samantha|Ava|Allison|Alex/i.test(v.name))||vs.find(v=>/en[-_]US/i.test(v.lang))||vs[0]||null}
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
-function say(t){if(!('speechSynthesis' in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-US';if(voice)u.voice=voice;u.rate=S.slow?0.65:0.92;speechSynthesis.speak(u)}
-document.addEventListener('click',e=>{const b=e.target.closest('[data-say]');if(!b)return;const k=b.dataset.say;say($(k)?$(k).textContent:k)});
+function tts(t,after){if(!('speechSynthesis' in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);if(after)u.onend=after;u.lang='en-US';if(voice)u.voice=voice;u.rate=S.slow?0.65:0.95;speechSynthesis.speak(u)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-say]');if(!b)return;play(b.dataset.key,$(b.dataset.say).textContent)});
 
 // ---- daily content ----
 const todayIdx=[...Array(PER_DAY)].map((_,i)=>((DI*PER_DAY+i)%WORDS.length+WORDS.length)%WORDS.length);
-const sent=SENTENCES[((DI%SENTENCES.length)+SENTENCES.length)%SENTENCES.length];
-$('sEn').textContent=sent[0];$('sZh').textContent=sent[1];$('sScene').textContent=sent[2];
+const sIdx=((DI%SENTENCES.length)+SENTENCES.length)%SENTENCES.length,sent=SENTENCES[sIdx];
+document.querySelector('[data-say=sEn]').dataset.key='s'+String(sIdx).padStart(3,'0');
+$('sEn').textContent=sent[0];$('sHint').textContent=SENT_HINTS[sIdx];$('sZh').textContent=sent[1];$('sScene').textContent=sent[2];
 const wk='日一二三四五六'[new Date().getDay()];
 $('dateTxt').textContent=`${new Date().getMonth()+1}月${new Date().getDate()}日 星期${wk} · 第${DI+1}天`;
 
@@ -156,16 +195,16 @@ function head(){const s=streak();$('streakTxt').textContent=s?`🔥 连续 ${s} 
 
 function wordCard(i,onRate,auto){
   const w=WORDS[i],el=document.createElement('div');el.className='card';
-  el.innerHTML=`<div class="row"><div class="grow"><div class="big"></div><div class="ph"></div></div><button class="spk" aria-label="朗读单词">🔊</button></div>
+  el.innerHTML=`<div class="row"><div class="grow"><div class="big"></div><div class="ph"></div><div class="hint wh"></div></div><button class="spk" aria-label="朗读单词">🔊</button></div>
   <button class="reveal">轻点查看释义</button>
-  <div class="ans hidden"><div class="zh"></div><div class="ex"><div class="row"><div class="grow"><div class="en"></div><div class="cn"></div></div><button class="spk spk2" aria-label="朗读例句">🔊</button></div></div>
+  <div class="ans hidden"><div class="zh"></div><div class="ex"><div class="row"><div class="grow"><div class="en"></div><div class="hint eh"></div><div class="cn"></div></div><button class="spk spk2" aria-label="朗读例句">🔊</button></div></div>
   <div class="btns2"><button class="btn bad">✗ 不认识</button><button class="btn ok">✓ 认识</button></div></div>`;
-  el.querySelector('.big').textContent=w[0];el.querySelector('.ph').textContent=w[1];
+  el.querySelector('.big').textContent=w[0];el.querySelector('.wh').textContent=WORD_HINTS[i][0];el.querySelector('.eh').textContent=WORD_HINTS[i][1];el.querySelector('.ph').textContent=w[1];
   el.querySelector('.zh').textContent=w[2];el.querySelector('.en').textContent=w[3];el.querySelector('.cn').textContent=w[4];
-  el.querySelector('.spk').onclick=()=>say(w[0]);el.querySelector('.spk2').onclick=()=>say(w[3]);
-  el.querySelector('.reveal').onclick=e=>{e.target.classList.add('hidden');el.querySelector('.ans').classList.remove('hidden');if(S.auto)say(w[3])};
+  el.querySelector('.spk').onclick=()=>play(wKey(i),w[0]);el.querySelector('.spk2').onclick=()=>play(eKey(i),w[3]);
+  el.querySelector('.reveal').onclick=e=>{e.target.classList.add('hidden');el.querySelector('.ans').classList.remove('hidden');if(S.auto)play(eKey(i),w[3])};
   el.querySelector('.bad').onclick=()=>onRate(false);el.querySelector('.ok').onclick=()=>onRate(true);
-  if(auto&&S.auto)setTimeout(()=>say(w[0]),50);
+  if(auto&&S.auto)play(wKey(i),w[0]); // sync, still inside the tap
   return el;
 }
 
@@ -206,19 +245,63 @@ function renderQuiz(){
   const el=document.createElement('div');el.className='card';
   el.innerHTML=`<div class="label">${mode?'选出正确的中文意思':'选出对应的英文'}</div><div class="row"><div class="grow ${mode?'big':'sent'}"></div>${mode?'<button class="spk">🔊</button>':''}</div><div class="opts"></div><div class="fb hidden" style="margin-top:14px"></div>`;
   el.querySelector('.grow').textContent=mode?w[0]:w[2];
-  if(mode)el.querySelector('.spk').onclick=()=>say(w[0]);
+  if(mode)el.querySelector('.spk').onclick=()=>play(wKey(q),w[0]);
   const oBox=el.querySelector('.opts');
   arr.forEach(o=>{const b=document.createElement('button');b.className='opt';b.textContent=mode?WORDS[o][2]:WORDS[o][0];
     b.onclick=()=>{if(oBox.dataset.done)return;oBox.dataset.done=1;
       [...oBox.children].forEach((c,k)=>{if(arr[k]===q)c.classList.add('right')});
-      if(o!==q)b.classList.add('wrong');say(w[0]);
+      if(o!==q)b.classList.add('wrong');play(wKey(q),w[0]);
       const fb=el.querySelector('.fb');fb.classList.remove('hidden');
-      fb.innerHTML=`<div class="ex" style="margin:0 0 14px"><div class="en"></div><div class="cn"></div></div><button class="btn primary full">下一题 →</button>`;
-      fb.querySelector('.en').textContent=w[3];fb.querySelector('.cn').textContent=w[4];
+      fb.innerHTML=`<div class="ex" style="margin:0 0 14px"><div class="en"></div><div class="hint"></div><div class="cn"></div></div><button class="btn primary full">下一题 →</button>`;
+      fb.querySelector('.en').textContent=w[3];fb.querySelector('.hint').textContent=WORD_HINTS[q][1];fb.querySelector('.cn').textContent=w[4];
       fb.querySelector('button').onclick=renderQuiz;
       if(S.cards[q]&&o!==q){S.cards[q].box=1;S.cards[q].due=T;save();head()}
     };oBox.appendChild(b)});
   box.appendChild(el);
+}
+
+// ---- Dialogues ----
+const dKey=(i,j)=>'d'+String(i).padStart(3,'0')+'_'+j;
+const todayDlg=((DI%DIALOGUES.length)+DIALOGUES.length)%DIALOGUES.length;
+let dlgView={scene:null,d:null};
+function esc(t){const e=document.createElement('span');e.textContent=t;return e.innerHTML}
+function renderDlg(){
+  const box=$('dlgBox');box.innerHTML='';
+  if(dlgView.d!==null)return renderOneDlg(dlgView.d);
+  if(dlgView.scene){
+    const sc=SCENES.find(x=>x[0]===dlgView.scene);
+    box.innerHTML=`<button class="back" id="bk">‹ 全部场景</button><div class="card"><div class="label">${sc[1]} ${esc(sc[0])}</div></div>`;
+    const c=box.querySelector('.card');
+    DIALOGUES.forEach((d,i)=>{if(d.s!==sc[0])return;const b=document.createElement('button');b.className='dl';
+      b.innerHTML=`<span>${esc(d.t)}</span><span class="tag">${d.l.length} 句 ›</span>`;b.onclick=()=>{dlgView.d=i;renderDlg();scrollTo(0,0)};c.appendChild(b)});
+    $('bk').onclick=()=>{dlgView.scene=null;renderDlg()};return;
+  }
+  const td=DIALOGUES[todayDlg],tsc=SCENES.find(x=>x[0]===td.s);
+  box.innerHTML=`<div class="card" id="todayD" style="cursor:pointer"><div class="label">📌 今日对话 · ${tsc?tsc[1]:''} ${esc(td.s)}</div><div class="sent">${esc(td.t)}</div><div style="color:var(--accent);margin-top:8px">开始练习 ›</div></div><div class="label" style="margin:16px 4px 0">选择场景（共 ${DIALOGUES.length} 段对话）</div><div class="scenes"></div>`;
+  $('todayD').onclick=()=>{dlgView.d=todayDlg;renderDlg();scrollTo(0,0)};
+  const g=box.querySelector('.scenes');
+  SCENES.forEach(([n,ic])=>{const cnt=DIALOGUES.filter(d=>d.s===n).length;if(!cnt)return;const b=document.createElement('button');b.className='scene';
+    b.innerHTML=`<b>${ic}</b>${esc(n)}<small>${cnt} 段</small>`;b.onclick=()=>{dlgView.scene=n;renderDlg();scrollTo(0,0)};g.appendChild(b)});
+}
+function renderOneDlg(i){
+  const d=DIALOGUES[i],box=$('dlgBox');
+  box.innerHTML=`<button class="back" id="bk">‹ 返回</button><div class="card"><div class="label">${esc(d.s)}</div><div class="sent" style="margin-bottom:12px">${esc(d.t)}</div>
+  <button class="btn primary full" id="playAll">▶ 播放整段对话</button><div class="lines" style="margin-top:8px"></div></div>
+  <div class="row" style="gap:10px"><button class="btn grow" id="prevD">‹ 上一段</button><button class="btn grow" id="nextD">下一段 ›</button></div>
+  <small class="note" style="margin:10px 4px">A = 男声，B = 女声。谐音只是辅助，请以音频为准，跟读模仿。</small>`;
+  const L=box.querySelector('.lines');
+  d.l.forEach((l,j)=>{const r=document.createElement('div');r.className='line';
+    r.innerHTML=`<div class="who ${l[0]}">${l[0]}</div><div class="grow"><div class="en"></div><div class="hint"></div><div class="cn"></div></div><button class="spk" aria-label="朗读">🔊</button>`;
+    r.querySelector('.en').textContent=l[1];r.querySelector('.hint').textContent=l[3];r.querySelector('.cn').textContent=l[2];
+    r.querySelector('.spk').onclick=()=>{mark(-1);play(dKey(i,j),l[1])};L.appendChild(r)});
+  const mark=k=>[...L.children].forEach((c,x)=>c.classList.toggle('cur',x===k));
+  const pa=$('playAll');
+  pa.onclick=()=>{if(seq){stopAudio();return}
+    pa.textContent='■ 停止';
+    playSeq(d.l.map((l,j)=>[dKey(i,j),l[1]]),k=>{mark(k);const el=L.children[k];el&&el.scrollIntoView({block:'nearest',behavior:'smooth'})},()=>{pa.textContent='▶ 播放整段对话';mark(-1)})};
+  $('bk').onclick=()=>{stopAudio();dlgView.d=null;if(!dlgView.scene)dlgView.scene=null;renderDlg();scrollTo(0,0)};
+  $('prevD').onclick=()=>{stopAudio();dlgView.d=(i-1+DIALOGUES.length)%DIALOGUES.length;renderDlg();scrollTo(0,0)};
+  $('nextD').onclick=()=>{stopAudio();dlgView.d=(i+1)%DIALOGUES.length;renderDlg();scrollTo(0,0)};
 }
 
 // ---- Stats ----
@@ -232,25 +315,30 @@ function renderStats(){
   ids.sort((a,b)=>(S.cards[b].seen>S.cards[a].seen)-(S.cards[b].seen<S.cards[a].seen)).forEach(i=>{
     const r=document.createElement('div');r.className='it';
     r.innerHTML=`<div><b class="w"></b><div class="m" style="color:var(--sub);font-size:14px"></div></div><span class="tag"></span>`;
-    r.querySelector('.w').textContent=WORDS[i][0];r.querySelector('.m').textContent=WORDS[i][2];
+    r.querySelector('.w').textContent=WORDS[i][0];r.querySelector('.m').textContent=WORD_HINTS[i][0]+' · '+WORDS[i][2];
     r.querySelector('.tag').textContent=S.cards[i].box>=4?'已掌握':`复习 ${S.cards[i].due.slice(5)}`;
-    r.onclick=()=>say(WORDS[i][0]);L.appendChild(r)});
+    r.onclick=()=>play(wKey(i),WORDS[i][0]);L.appendChild(r)});
 }
-$('slowSw').onclick=()=>{S.slow=!S.slow;save();renderStats();say('This is the reading speed.')};
+$('slowSw').onclick=()=>{S.slow=!S.slow;save();renderStats();play('s000',SENTENCES[0][0])};
 $('autoSw').onclick=()=>{S.auto=!S.auto;save();renderStats()};
 $('resetBtn').onclick=()=>{if(confirm('确定清空所有学习记录？')){localStorage.removeItem(KEY);location.reload()}};
 
 // ---- nav ----
-const titles={today:'今日英语',review:'复习',quiz:'小测验',stats:'学习进度'};
+const titles={today:'今日英语',dlg:'场景对话',review:'复习',quiz:'小测验',stats:'学习进度'};
 function show(v){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  ['today','review','quiz','stats'].forEach(k=>$('v-'+k).classList.toggle('hidden',k!==v));
-  $('title').textContent=titles[v];if('speechSynthesis' in window)speechSynthesis.cancel();
-  ({today:()=>renderToday(false),review:renderReview,quiz:renderQuiz,stats:renderStats})[v]();scrollTo(0,0)}
+  ['today','dlg','review','quiz','stats'].forEach(k=>$('v-'+k).classList.toggle('hidden',k!==v));
+  $('title').textContent=titles[v];stopAudio();
+  ({today:()=>renderToday(false),dlg:renderDlg,review:renderReview,quiz:renderQuiz,stats:renderStats})[v]();scrollTo(0,0)}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 // reload on a new day when app resumes from background
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&todayStr()!==T)location.reload()});
 head();renderToday(false);
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator){
+  const hadCtrl=!!navigator.serviceWorker.controller;let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadCtrl&&!reloaded){reloaded=true;location.reload()}});
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update().catch(()=>{});
+    navigator.serviceWorker.ready.then(reg=>reg.active&&reg.active.postMessage('cache-audio'))}).catch(()=>{});
+}
 })();
 </script>
 </body>
